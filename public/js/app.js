@@ -418,6 +418,8 @@ const loginModal = document.getElementById("loginModal");
 const loginBox = document.querySelector(".login-box");
 
 // ===== INTRO SCREEN INTERACTION =====
+
+
 // Click anywhere on intro screen to show login modal
 loginPage.addEventListener("click", function (e) {
   // Only open modal if it's not already open
@@ -426,16 +428,43 @@ loginPage.addEventListener("click", function (e) {
     loginPage.style.cursor = "default";
   }
   // If modal is open and click is outside login box
-  else if (!loginBox.contains(e.target)) {
+  else if (!loginBox.contains(e.target) && !registerBox.contains(e.target)) {
     // Only close if both inputs are empty
     const usernameEmpty = usernameInput.value.trim() === "";
     const passwordEmpty = passwordInput.value.trim() === "";
 
-    if (usernameEmpty && passwordEmpty) {
+    if (usernameEmpty && passwordEmpty ) {
+      //console.log(1);
       closeLoginModal();
     }
   }
 });
+
+function getActiveModal() {
+  return document.querySelector(".login-modal.show");
+}
+
+// loginPage.addEventListener("click", function (e) {
+//   if (!loginPage.classList.contains("modal-open")) {
+//     loginPage.classList.add("modal-open");
+//     loginPage.style.cursor = "default";
+//     console.log(1);
+//   }
+//   const activeModal = getActiveModal();
+//   if (!activeModal) return;
+
+//   const activeBox = activeModal.querySelector(".login-box");
+  
+//   // Click ngoài box
+//   if (!activeBox.contains(e.target)) {
+//     const usernameEmpty = usernameInput.value.trim() === "";
+//     const passwordEmpty = passwordInput.value.trim() === "";
+
+//     if (usernameEmpty && passwordEmpty) {
+//       closeLoginModal();
+//     }
+//   }
+// });
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape") {
     // Chỉ xử lý khi modal đang mở
@@ -466,6 +495,10 @@ loginBox.addEventListener("click", function (e) {
 function closeLoginModal() {
   loginPage.classList.remove("modal-open");
   loginPage.style.cursor = "pointer";
+  registerModal.style.display = "none";
+  registerModal.classList.remove("show");
+  loginModal.style.display = "block";
+  loginModal.classList.remove("show");
   // Clear error message when closing
   errorMsg.textContent = "";
 }
@@ -669,6 +702,7 @@ function flattenResidents() {
 
 // DOM elements for registration
 const registerModal = document.getElementById("registerModal");
+const registerBox = registerModal.querySelector(".login-box");
 const showRegisterBtn = document.getElementById("showRegisterBtn");
 const showLoginBtn = document.getElementById("showLoginBtn");
 const registerBtn = document.getElementById("registerBtn");
@@ -1586,6 +1620,7 @@ async function renderResidents(list = residents) {
 
 // CẬP NHẬT: Trang chi tiết nhân khẩu đầy đủ thông tin
 async function showResidentDetail(id) {
+  detailHistory = [];
   const r = residents.find(x => x.nkID === id);
   let dieContent = ''
   if (!r) return;
@@ -1931,7 +1966,7 @@ async function addResidentToHousehold(hkId) {
     if (res.success) {
       saveHistory(hkId, `Thêm nhân khẩu ${data.hoTen}`);
       Saved(res.message);
-      await delay(200);
+      delayy(1200);
       await loadData();
       showHouseholdBookDetail(hkId);
     }
@@ -2007,15 +2042,15 @@ async function saveDeath(nkId) {
     const res = await ApiService.saveDeath(data);
     if (res.success) {
 
-      Saved(res.message);
-      await delay(200);
+      Saved(res.message,2000);
+      delay(200);
       //alert("Lưu thành công");
       hide = 1;
       notNav = 1;
       await loadData();
 
       showResidentDetail(nkId);
-
+      delayy(200);
       //backDetailView();
 
     }
@@ -2599,9 +2634,11 @@ async function deleteAbsent(id) {
     if (res.success) {
 
       Saved(res.message);
-      await delay(200);
+      delayy(1200);
       await loadData();
-
+      if(currentSection === 'residents'){
+        showResidentDetail(id);
+      }
       //backDetailView(true);
 
       //renderAbsent();
@@ -3137,7 +3174,7 @@ function showActionModalNK(id, out = 0) {
     <button class="btn secondary" onclick='showResidentForm(${id}, ${r.IDHOKHAU})'>Thay đổi thông tin nhân khẩu</button>
     <button class="btn secondary" onclick='showAbsentForm( ${id} )'>Thay đổi thông tin tạm vắng</button>
     <button class='btn secondary' onclick='declareDeathForm(${id})'>Khai tử</button>
-    <button class="btn secondary" onclick="deleteResident(${id})">Xoá thường trú</button>
+    <button class="btn secondary" onclick="deleteResident(${id}, ${r.IDHOKHAU})">Xoá thường trú</button>
   `;
   }
   else {
@@ -3145,7 +3182,7 @@ function showActionModalNK(id, out = 0) {
     <button class="btn secondary" onclick='showResidentForm(${id}, ${r.IDHOKHAU})'>Thay đổi thông tin nhân khẩu</button>
     <button class="btn secondary" onclick='showAbsentForm( ${id} )'>Đăng ký tạm vắng</button>
     <button class='btn secondary' onclick='declareDeathForm(${id})'>Khai tử</button>
-    <button class="btn secondary" onclick="deleteResident(${id})">Xoá thường trú</button>
+    <button class="btn secondary" onclick="deleteResident(${id}, ${r.IDHOKHAU})">Xoá thường trú</button>
   `;
   }
   if (r.ghiChu === "Đã qua đời") {
@@ -3153,10 +3190,10 @@ function showActionModalNK(id, out = 0) {
     <button class="btn secondary" onclick='fireErrNK()' data-close="false">Thay đổi thông tin nhân khẩu</button>
     <button class="btn secondary" onclick='fireErrNK()' data-close="false">Đăng ký tạm vắng</button>
     <button class='btn secondary' onclick='fireErrNK()' data-close="false">Khai tử</button>
-    <button class="btn secondary" onclick="deleteResident(${id})">Xoá thường trú</button>
+    <button class="btn secondary" onclick="deleteResident(${id}, ${r.IDHOKHAU})">Xoá thường trú</button>
   `;
   }
-  if (out) a = `<button class='btn secondary' onclick='showResidentDetail(${id})'>Xem thông tin chi tiết</button>` + a;
+  if (out) a = `<button class='btn secondary' onclick='showResidentDetail2(${id})'>Xem thông tin chi tiết</button>` + a;
   showActionModal(a);
 }
 function showActionModalRW(id, inn = 0) {
@@ -3224,7 +3261,21 @@ function showHouseholdBookDetail2(id) {
   const activeSection = document.getElementById(sectionId);
   if (activeSection) activeSection.classList.add("active");
   showHouseholdBookDetail(id);
+  detailHistory = [];
+}
+function showResidentDetail2(id) {
+  detailHistory = [];
+  sectionId = 'residents';
+  updateHeader(sectionId);
+  resetMenu();
+  document.querySelector(".nav-item[data-section='residents']").classList.add("active");
+  currentSection = sectionId;
 
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  const activeSection = document.getElementById(sectionId);
+  if (activeSection) activeSection.classList.add("active");
+  showResidentDetail(id);
+  detailHistory = [];
 }
 function backDetailView(x = false) {
   //console.log(detailHistory);
@@ -3435,11 +3486,11 @@ async function saveSplitHousehold(hkid) {
       saveHistory(hkid, `${state.newOwner.ten}${(state.newMembers || []).map(m => `, ${m.ten}`).join('')} đã tách thành hộ mới`);
       saveHistory(res.newHkId, 'Tạo hộ mới');
       saveHistory(res.newHkId, `Thêm nhân khẩu: ${state.newOwner.ten}${(state.newMembers || []).map(m => `, ${m.ten}`).join('')}`);
-      Saved(res.message);
-      await delay(200);
+      Saved(res.message,2000);
+      //await delay(200);
       //hide = 0;
       await loadData();
-
+      delayy(200);
       showHouseholdBookDetail(res.newHkId);
     }
     else {
@@ -3804,10 +3855,13 @@ async function saveChangeOwner(hkId) {
   if (await confirmm("Xác nhận đổi chủ hộ?", `${state.newOwner.ten} sẽ làm chủ hộ mới`)) {
     const res = await ApiService.saveChangeOwner(data);
     if (res.success) {
-      saveHistory(hkId, `Thay đổi chủ hộ từ "${state.oldOwner.ten}" thành "${state.newOwner.ten}"`);
       Saved(res.message);
-      await delay(200);
+      saveHistory(hkId, `Thay đổi chủ hộ từ "${state.oldOwner.ten}" thành "${state.newOwner.ten}"`);
       await loadData();
+      
+      
+      //delayy(1200);
+      
 
       showHouseholdBookDetail(hkId);
     }
@@ -4267,6 +4321,7 @@ async function submitRequestForm(event, actionKey, actionName) {
       `:`
       ${actionName} cho ${curCitizen.ten} chuyển đến
       `,
+      NK_ID:curCitizen.nkID,
       noiTamTru: document.getElementById('noiTamTru')?.value,
       noiChuyenDen: document.getElementById('noiTamTru')?.value,
       ngayDangKy: document.getElementById('ngayDangKy')?.value,
@@ -4307,7 +4362,8 @@ async function submitRequestForm(event, actionKey, actionName) {
         vaiTro: m.newRole
       })),
       text: "Thay đổi chủ hộ cho hộ khẩu "+curCitizen.household.id,
-      none: ' '
+      none: ' ',
+      TT: `Thay đổi chủ hộ từ "${curCitizen.household.chuHo}" thành "${state.newOwner.ten}"`
     }
   } else if (actionKey === 'splitHousehold') {
     // Get members from state if using drag-drop interface
@@ -4335,7 +4391,9 @@ async function submitRequestForm(event, actionKey, actionName) {
           id: m.nkID,
           vaiTro: m.newRole
         }))
+      
       },
+      tt: `Thêm nhân khẩu: ${state.newOwner.ten}${(state.newMembers || []).map(m => `, ${m.ten}`).join('')}`,
       text: 'Tách hộ khẩu',
       HKcu: curCitizen.members.map(x => `${x.ten}`).join(', '),
       HK1: curCitizen.household.chuHo + ', ' + state.oldMembers.map(x => `${x.ten}`).join(', '),
@@ -4584,7 +4642,7 @@ async function showRequestDetail(requestId, reqDataStr) {
   if (req.processedDate) {
     processedHtml = `
     <div class="info-item-row"><label>Ngày xử lý</label><span>${req.processedDate}</span></div>
-      
+    <div class="info-item-row"><label>Lý do từ chối</label><span>${req.rejectReason || 'Không có'}</span></div>
   `;//<div class="info-item-row"><label>Người xử lý</label><span>${req.processedBy || 'N/A'}</span></div>
   }
 
@@ -4596,6 +4654,7 @@ async function showRequestDetail(requestId, reqDataStr) {
         
         <div class="info-item-row"><label>Trạng thái</label><span style="color: ${statusColor}; font-weight: bold;">${statusText}</span></div>
         <div class="info-item-row"><label>Ngày gửi</label><span>${req.createdDate}</span></div>
+        
         ${processedHtml}
       </div>
     ${payloadHtml}
@@ -4632,7 +4691,8 @@ function formatPayloadKey(key) {
     'HK1': 'Hộ khẩu thứ nhất',
     'HK2': 'Hộ khẩu thứ hai',
     'HoKhauMoi': 10,
-    'idHoKhauCu':10
+    'idHoKhauCu':10,
+    'TT': 10
   };
   return keyMap[key] || key;
 }
@@ -4657,7 +4717,9 @@ async function approveRequestHandler(requestId) {
   closeLoading();
 
   if (result.success) {
+    loadData();
     Saved('Đã phê duyệt đơn xin', 1200);
+
     await renderAdminRequests();
     backDetailView();
   } else {

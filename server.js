@@ -199,6 +199,7 @@ app.get('/api/households', async (req, res) => {
                 FORMAT(hk.NGAYLAP, 'yyyy-MM-dd') as ngayLapSo
             FROM HOKHAU hk
             LEFT JOIN NHANKHAU nk ON hk.IDCHUHO = nk.ID
+            ORDER BY hk.ID
         `);
 
         // Lấy danh sách thành viên để nhúng vào hộ khẩu (phục vụ hiển thị chi tiết Hộ)
@@ -658,8 +659,8 @@ app.post('/api/households/resident', async (req, res) => {
                     );
                 END
                 DECLARE @diaChiTT NVARCHAR(255) = (SELECT DIACHI FROM HOKHAU WHERE ID = @idHoKhau);
-                INSERT INTO NHANKHAU ( HOTEN, NGAYSINH, GIOITINH, SODIENTHOAI, EMAIL, NOISINH, DANTOC, TONGIAO, QUOCTICH, NGUYENQUAN, TRINHDOHOCVAN, NGHENGHIEP, NOILAMVIEC, DIACHIHIENNAY, SOCCCD )
-                VALUES ( @hoTen, @ngaySinh, @gioiTinh, @sdt, @email, @noiSinh, @danToc, @tonGiao, @quocTich, @nguyenQuan, @hocVan, @ngheNghiep, @noiLamViec, @diaChiTT, @cccd );
+                INSERT INTO NHANKHAU ( HOTEN, NGAYSINH, GIOITINH, SODIENTHOAI, EMAIL, NOISINH, DANTOC, TONGIAO, QUOCTICH, NGUYENQUAN, TRINHDOHOCVAN, NGHENGHIEP, NOILAMVIEC, NOITHUONGTRU, DIACHIHIENNAY, SOCCCD )
+                VALUES ( @hoTen, @ngaySinh, @gioiTinh, @sdt, @email, @noiSinh, @danToc, @tonGiao, @quocTich, @nguyenQuan, @hocVan, @ngheNghiep, @noiLamViec, @diaChiTT, @diaChiTT, @cccd );
 
                 SET @IDNHANKHAU = SCOPE_IDENTITY();
 
@@ -690,6 +691,13 @@ app.delete('/api/households/:id', async (req, res) => {
                 UPDATE NHANKHAU
                 SET GHICHU = N'Đã chuyển đi'
                 WHERE ID IN (SELECT IDNHANKHAU FROM THANHVIENCUAHO WHERE IDHOKHAU = @id)
+                DELETE FROM LICHSUHOKHAU WHERE IDHOKHAU =@id
+                
+                DELETE tht FROM THUONGHOCTAP tht
+                JOIN HOCSINH hs ON hs.ID = tht.ID_HOCSINH
+                WHERE hs.IDHOKHAU = @id
+                DELETE FROM HOCSINH WHERE IDHOKHAU = @id
+                DELETE FROM THUONGLE WHERE ID_HOKHAU = @id;
 
                 DELETE FROM THANHVIENCUAHO WHERE IDHOKHAU = @id;
                 DELETE FROM HOKHAU WHERE ID = @id;
@@ -2267,7 +2275,7 @@ app.put('/api/requests/:id/approve', requireAdmin, async (req, res) => {
             case 'Đăng ký tạm vắng':
                 // Insert into TAMVANG
                 await new sql.Request(transaction)
-                    .input('nkId', sql.Int, request.NK_ID)
+                    .input('id', sql.Int, request.NK_ID)
                     .input('noiChuyenDen', sql.NVarChar, requestData.noiChuyenDen)
                     .input('ngayDK', sql.Date, requestData.ngayDangKy)
                     .input('denNgay', sql.Date, requestData.denNgay)
@@ -2325,7 +2333,7 @@ app.put('/api/requests/:id/approve', requireAdmin, async (req, res) => {
             case 'Xóa đăng ký tạm vắng':
                 // Delete from TAMVANG
                 await new sql.Request(transaction)
-                    .input('nkId', sql.Int, request.NK_ID)
+                    .input('id', sql.Int, request.NK_ID)
                     .query(`
                         DELETE FROM TAMVANG WHERE IDNHANKHAU = @id;
 
@@ -2389,11 +2397,19 @@ app.put('/api/requests/:id/approve', requireAdmin, async (req, res) => {
                 data.tv.forEach(tv => {
                     tvp.rows.add(tv.id, tv.vaiTro);
                 });
-                
+                await new sql.Request(transaction)
+                    .input('idHK', sql.Int, data.idHK)
+                    .input('tt', sql.NVarChar, data.tt)
+                    .query(`
+                        INSERT INTO LICHSUHOKHAU (IDHOKHAU, NGAYTHAYDOI, THONGTIN)
+                        VALUES (@idHK, GETDATE(), @tt)
+                    `);
                 await new sql.Request(transaction)
                     .input('idHK', sql.Int, data.idHK)
                     .input('newOwnerId', sql.Int, data.newOwnerId)
+                    
                     .input('thanhVien', tvp)
+                    
                     .execute('dbo.changeOwner');
                 
                 break;
@@ -2416,7 +2432,7 @@ app.put('/api/requests/:id/approve', requireAdmin, async (req, res) => {
                 //throw new Error();
                 
 
-                await new sql.Request(transaction)
+                const x = await new sql.Request(transaction)
                     // ---- hộ khẩu cũ
                     .input('oldHkId', sql.Int, data.idHoKhauCu)
 
@@ -2428,6 +2444,15 @@ app.put('/api/requests/:id/approve', requireAdmin, async (req, res) => {
                     // ---- TVP thành viên
                     .input('thanhVien', tvp)
                     .execute('dbo.SplitHousehold');
+                const idMoi = x.recordset[0].newHkId;
+                await new sql.Request(transaction)
+                    .input('idHK', sql.Int, idMoi)
+                    .input('tt', sql.NVarChar, data.tt)
+                    .query(`
+                        INSERT INTO LICHSUHOKHAU (IDHOKHAU, NGAYTHAYDOI, THONGTIN)
+                        VALUES (@idHK, GETDATE(), N'Tạo hộ mới'), (@idHK, GETDATE(), @tt)
+
+                    `);
         }
 
         // Update request status
